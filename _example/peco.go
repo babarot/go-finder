@@ -1,16 +1,19 @@
 package main
 
 import (
-	"log"
+	"fmt"
 
 	finder "github.com/b4b4r07/go-finder"
-	"github.com/k0kubun/pp"
 )
 
 func main() {
 	peco, err := finder.New("peco", "--layout=bottom-up")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	pp.Println(peco.Run())
+	items, err := peco.Run()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%#v\n", items)
 }
