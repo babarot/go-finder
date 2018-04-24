@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 // DefaultCommandsList is the list of finder commands
@@ -75,4 +76,71 @@ func Command(commands ...string) string {
 		}
 	}
 	return ""
+}
+
+// From sets Source
+func (f *Finder) From(source func(io.WriteCloser) error) {
+	f.Source = source
+}
+
+// FromFile sets the contents of the file as Source
+func (f *Finder) FromFile(file string) {
+	f.Source = func(in io.WriteCloser) error {
+		fp, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		defer fp.Close()
+		scanner := bufio.NewScanner(fp)
+		for scanner.Scan() {
+			fmt.Fprintln(in, scanner.Text())
+		}
+		return scanner.Err()
+	}
+}
+
+// FromText sets the text as Source
+func (f *Finder) FromText(text string) {
+	f.Source = func(in io.WriteCloser) error {
+		fmt.Fprintln(in, text)
+		return nil
+	}
+}
+
+// FromCommand sets the execution result of the command as Source
+func (f *Finder) FromCommand(command string, args ...string) {
+	f.Source = func(in io.WriteCloser) error {
+		if _, err := exec.LookPath(command); err != nil {
+			return err
+		}
+		for _, arg := range args {
+			command += " " + arg
+		}
+		var cmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			cmd = exec.Command("cmd", "/c", command)
+		} else {
+			cmd = exec.Command("sh", "-c", command)
+		}
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = in
+		cmd.Stdin = os.Stdin
+		return cmd.Run()
+	}
+}
+
+// FromReader sets io.Reader as Source
+func (f *Finder) FromReader(r io.Reader) {
+	f.Source = func(in io.WriteCloser) error {
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			fmt.Fprintln(in, scanner.Text())
+		}
+		return scanner.Err()
+	}
+}
+
+// FromStdin sets os.Stdin as Source
+func (f *Finder) FromStdin() {
+	f.FromReader(os.Stdin)
 }
