@@ -19,7 +19,7 @@ var DefaultCommandsList = []string{
 type Finder struct {
 	Command string
 	Options []string
-	Source  func(io.WriteCloser)
+	Source  func(io.WriteCloser) error
 
 	oneliner string
 	path     string
@@ -41,13 +41,12 @@ func New(command string, opts ...string) (*Finder, error) {
 	return &Finder{
 		Options: opts,
 		Command: command,
-		Source: func(in io.WriteCloser) {
+		Source: func(in io.WriteCloser) error {
 			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
 				fmt.Fprintln(in, scanner.Text())
 			}
-			// Do no handle error
-			// scanner.Err()
+			return scanner.Err()
 		},
 		oneliner: oneliner,
 		path:     path,
@@ -55,8 +54,8 @@ func New(command string, opts ...string) (*Finder, error) {
 }
 
 // Run runs the finder command
-func (f *Finder) Run() []string {
-	return withFilter(f.oneliner, f.Source)
+func (f *Finder) Run() ([]string, error) {
+	return filter(f.oneliner, f.Source)
 }
 
 // SetOptions sets options

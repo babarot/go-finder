@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func withFilter(command string, input func(in io.WriteCloser)) []string {
+func filter(command string, source func(in io.WriteCloser) error) ([]string, error) {
 	shell := os.Getenv("SHELL")
 	if len(shell) == 0 {
 		shell = "sh"
@@ -15,10 +15,19 @@ func withFilter(command string, input func(in io.WriteCloser)) []string {
 	cmd := exec.Command(shell, "-c", command)
 	cmd.Stderr = os.Stderr
 	in, _ := cmd.StdinPipe()
+	errCh := make(chan error, 1)
 	go func() {
-		input(in)
+		if err := source(in); err != nil {
+			errCh <- err
+			return
+		}
+		errCh <- nil
 		in.Close()
 	}()
+	err := <-errCh
+	if err != nil {
+		return []string{}, err
+	}
 	result, _ := cmd.Output()
-	return strings.Split(string(result), "\n")
+	return strings.Split(string(result), "\n"), nil
 }
