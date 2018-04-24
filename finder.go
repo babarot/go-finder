@@ -22,8 +22,8 @@ type Finder struct {
 	Options []string
 	Source  func(io.WriteCloser) error
 
-	oneliner string
-	path     string
+	filter string
+	path   string
 }
 
 // New returns new Finder object
@@ -35,9 +35,9 @@ func New(command string, opts ...string) (*Finder, error) {
 	if err != nil {
 		return &Finder{}, err
 	}
-	oneliner := path
+	filter := path
 	for _, opt := range opts {
-		oneliner += " " + opt
+		filter += " " + opt
 	}
 	return &Finder{
 		Options: opts,
@@ -49,14 +49,14 @@ func New(command string, opts ...string) (*Finder, error) {
 			}
 			return scanner.Err()
 		},
-		oneliner: oneliner,
-		path:     path,
+		filter: filter,
+		path:   path,
 	}, nil
 }
 
 // Run runs the finder command
 func (f *Finder) Run() ([]string, error) {
-	return filter(f.oneliner, f.Source)
+	return filter(f.filter, f.Source)
 }
 
 // SetOptions sets options
