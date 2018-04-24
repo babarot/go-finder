@@ -18,7 +18,10 @@ func main() {
 	command := finder.Command()
 	switch command {
 	case "fzf":
-		opts = []string{"--reverse"}
+		opts = []string{
+			"--reverse",
+			"--height", "40",
+		}
 	case "peco":
 	}
 	f, err := finder.New(command, opts...)
@@ -26,20 +29,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// sample
-	f.Input = func(in io.WriteCloser) {
+	// golang
+	f.Source = func(in io.WriteCloser) {
 		for i := 0; i < 1000; i++ {
 			fmt.Fprintln(in, i)
 		}
 	}
 
 	// file
-	file, err := os.Open("test")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-	f.Input = func(in io.WriteCloser) {
+	f.Source = func(in io.WriteCloser) {
+		file, err := os.Open("test")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			fmt.Fprintln(in, scanner.Text())
@@ -49,8 +52,8 @@ func main() {
 		}
 	}
 
-	// echo
-	f.Input = func(in io.WriteCloser) {
+	// command
+	f.Source = func(in io.WriteCloser) {
 		command := "echo hoge"
 		var cmd *exec.Cmd
 		if runtime.GOOS == "windows" {
@@ -65,7 +68,7 @@ func main() {
 	}
 
 	// stdin
-	f.Input = func(in io.WriteCloser) {
+	f.Source = func(in io.WriteCloser) {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			fmt.Fprintln(in, scanner.Text())
