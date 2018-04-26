@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func filter(command string, source func(in io.WriteCloser) error) ([]string, error) {
+func filter(command string, source func(out io.WriteCloser) error) ([]string, error) {
 	shell := os.Getenv("SHELL")
 	if len(shell) == 0 {
 		shell = "sh"

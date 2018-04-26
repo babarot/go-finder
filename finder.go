@@ -12,8 +12,15 @@ import (
 
 // DefaultCommandsList is the list of finder commands
 var DefaultCommandsList = []string{
-	"fzf",  // https://github.com/junegunn/fzf
-	"peco", // https://github.com/peco/peco
+	"fzf",     // https://github.com/junegunn/fzf
+	"peco",    // https://github.com/peco/peco
+	"percol",  // https://github.com/mooz/percol
+	"fzy",     // https://github.com/jhawthorn/fzy
+	"gof",     // https://github.com/mattn/eof
+	"selecta", // https://github.com/garybernhardt/selecta/
+	"pick",    // https://github.com/mptre/pick/
+	"icepick", // https://github.com/felipesere/icepick
+	"sentaku", // https://github.com/rcmdnk/sentaku
 }
 
 // Finder represents the finder command attributes
@@ -42,10 +49,10 @@ func New(command string, opts ...string) (*Finder, error) {
 	return &Finder{
 		Options: opts,
 		Command: command,
-		Source: func(in io.WriteCloser) error {
+		Source: func(out io.WriteCloser) error {
 			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
-				fmt.Fprintln(in, scanner.Text())
+				fmt.Fprintln(out, scanner.Text())
 			}
 			return scanner.Err()
 		},
@@ -85,7 +92,7 @@ func (f *Finder) From(source func(io.WriteCloser) error) {
 
 // FromFile sets the contents of the file as Source
 func (f *Finder) FromFile(file string) {
-	f.Source = func(in io.WriteCloser) error {
+	f.Source = func(out io.WriteCloser) error {
 		fp, err := os.Open(file)
 		if err != nil {
 			return err
@@ -93,7 +100,7 @@ func (f *Finder) FromFile(file string) {
 		defer fp.Close()
 		scanner := bufio.NewScanner(fp)
 		for scanner.Scan() {
-			fmt.Fprintln(in, scanner.Text())
+			fmt.Fprintln(out, scanner.Text())
 		}
 		return scanner.Err()
 	}
@@ -101,15 +108,15 @@ func (f *Finder) FromFile(file string) {
 
 // FromText sets the text as Source
 func (f *Finder) FromText(text string) {
-	f.Source = func(in io.WriteCloser) error {
-		fmt.Fprintln(in, text)
+	f.Source = func(out io.WriteCloser) error {
+		fmt.Fprintln(out, text)
 		return nil
 	}
 }
 
 // FromCommand sets the execution result of the command as Source
 func (f *Finder) FromCommand(command string, args ...string) {
-	f.Source = func(in io.WriteCloser) error {
+	f.Source = func(out io.WriteCloser) error {
 		if _, err := exec.LookPath(command); err != nil {
 			return err
 		}
@@ -123,7 +130,7 @@ func (f *Finder) FromCommand(command string, args ...string) {
 			cmd = exec.Command("sh", "-c", command)
 		}
 		cmd.Stderr = os.Stderr
-		cmd.Stdout = in
+		cmd.Stdout = out
 		cmd.Stdin = os.Stdin
 		return cmd.Run()
 	}
@@ -131,10 +138,10 @@ func (f *Finder) FromCommand(command string, args ...string) {
 
 // FromReader sets io.Reader as Source
 func (f *Finder) FromReader(r io.Reader) {
-	f.Source = func(in io.WriteCloser) error {
+	f.Source = func(out io.WriteCloser) error {
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
-			fmt.Fprintln(in, scanner.Text())
+			fmt.Fprintln(out, scanner.Text())
 		}
 		return scanner.Err()
 	}
