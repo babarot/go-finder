@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -103,6 +104,20 @@ func (f *Finder) FromFile(file string) {
 			fmt.Fprintln(out, scanner.Text())
 		}
 		return scanner.Err()
+	}
+}
+
+// FromDir sets io.Reader as Source
+func (f *Finder) FromDir(dir string) {
+	f.Source = func(out io.WriteCloser) error {
+		files, err := ioutil.ReadDir(dir)
+		if err != nil {
+			return err
+		}
+		for _, file := range files {
+			fmt.Fprintln(out, file.Name())
+		}
+		return nil
 	}
 }
 
