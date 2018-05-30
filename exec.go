@@ -29,5 +29,16 @@ func filter(command string, source func(out io.WriteCloser) error) ([]string, er
 		return []string{}, err
 	}
 	result, _ := cmd.Output()
-	return strings.Split(string(result), "\n"), nil
+	return trimLastNewline(strings.Split(string(result), "\n")), nil
+}
+
+func trimLastNewline(s []string) []string {
+	if len(s) == 0 {
+		return s
+	}
+	last := len(s) - 1
+	if s[last] == "" {
+		return s[:last]
+	}
+	return s
 }
