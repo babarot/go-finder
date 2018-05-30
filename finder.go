@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
@@ -108,14 +109,18 @@ func (f *Finder) FromFile(file string) {
 }
 
 // FromDir sets io.Reader as Source
-func (f *Finder) FromDir(dir string) {
+func (f *Finder) FromDir(dir string, full bool) {
 	f.Source = func(out io.WriteCloser) error {
 		files, err := ioutil.ReadDir(dir)
 		if err != nil {
 			return err
 		}
 		for _, file := range files {
-			fmt.Fprintln(out, file.Name())
+			fname := file.Name()
+			if full {
+				fname = filepath.Join(dir, fname)
+			}
+			fmt.Fprintln(out, fname)
 		}
 		return nil
 	}
