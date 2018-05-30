@@ -1,6 +1,8 @@
 go-finder
 =========
 
+[![GoDoc](https://godoc.org/github.com/b4b4r07/go-finder?status.svg)](https://godoc.org/github.com/b4b4r07/go-finder)
+
 CLI finder wrapper (fzf, peco, etc) for golang
 
 ## Usage
