@@ -1,173 +1,102 @@
 package finder
 
 import (
-	"bufio"
-	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
+	"strings"
+
+	"github.com/b4b4r07/go-finder/source"
+	"github.com/pkg/errors"
 )
 
-// DefaultCommandsList is the list of finder commands
-var DefaultCommandsList = []string{
-	"fzf",     // https://github.com/junegunn/fzf
-	"peco",    // https://github.com/peco/peco
-	"percol",  // https://github.com/mooz/percol
-	"fzy",     // https://github.com/jhawthorn/fzy
-	"gof",     // https://github.com/mattn/eof
-	"selecta", // https://github.com/garybernhardt/selecta/
-	"pick",    // https://github.com/mptre/pick/
-	"icepick", // https://github.com/felipesere/icepick
-	"sentaku", // https://github.com/rcmdnk/sentaku
+// CLI is the command having a command-line interface
+type CLI interface {
+	Run() ([]string, error)
 }
 
-// Finder represents the finder command attributes
-type Finder struct {
-	Command string
-	Options []string
-	Source  func(io.WriteCloser) error
-
-	filter string
-	path   string
+// Finder is the interface of a filter command
+type Finder interface {
+	CLI
+	Install() error
+	Read(source.Source)
 }
 
-// New returns new Finder object
-func New(command string, opts ...string) (*Finder, error) {
-	if command == "" {
-		return &Finder{}, errors.New("no command available as a CLI finder")
+// Command represents the command
+type Command struct {
+	Name  string
+	Args  []string
+	Path  string
+	Input source.Source
+}
+
+// Run runs as a command
+func (c *Command) Run() ([]string, error) {
+	shell := os.Getenv("SHELL")
+	if len(shell) == 0 {
+		shell = "sh"
 	}
-	path, err := exec.LookPath(command)
+	cmd := exec.Command(shell, "-c", c.Path+" "+strings.Join(c.Args, " "))
+	cmd.Stderr = os.Stderr
+	in, _ := cmd.StdinPipe()
+	errCh := make(chan error, 1)
+	go func() {
+		if err := c.Input(in); err != nil {
+			errCh <- err
+			return
+		}
+		errCh <- nil
+		in.Close()
+	}()
+	err := <-errCh
 	if err != nil {
-		return &Finder{}, err
+		return []string{}, err
 	}
-	filter := path
-	for _, opt := range opts {
-		filter += " " + opt
+	result, _ := cmd.Output()
+	return trimLastNewline(strings.Split(string(result), "\n")), nil
+}
+
+func trimLastNewline(s []string) []string {
+	if len(s) == 0 {
+		return s
 	}
-	return &Finder{
-		Options: opts,
-		Command: command,
-		Source: func(out io.WriteCloser) error {
-			scanner := bufio.NewScanner(os.Stdin)
-			for scanner.Scan() {
-				fmt.Fprintln(out, scanner.Text())
-			}
-			return scanner.Err()
-		},
-		filter: filter,
-		path:   path,
-	}, nil
-}
-
-// Run runs the finder command
-func (f *Finder) Run() ([]string, error) {
-	return filter(f.filter, f.Source)
-}
-
-// SetOptions sets options
-func (f *Finder) SetOptions(opts ...string) {
-	f.Options = opts
-}
-
-// Command returns the command name existing in your PATH
-func Command(commands ...string) string {
-	if len(commands) == 0 {
-		commands = DefaultCommandsList
+	last := len(s) - 1
+	if s[last] == "" {
+		return s[:last]
 	}
-	for _, command := range commands {
-		_, err := exec.LookPath(command)
-		if err == nil {
-			return command
-		}
+	return s
+}
+
+// Install does nothing and is implemented to satisfy Finder interface
+// This method should be overwritten by each finder command implementation
+func (c *Command) Install() error {
+	return nil
+}
+
+// Read sets the data sources
+func (c *Command) Read(data source.Source) {
+	c.Input = data
+}
+
+// New creates Finder instance
+func New(name string, args ...string) (Finder, error) {
+	path, err := exec.LookPath(name)
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s: not found", name)
 	}
-	return ""
-}
-
-// From sets Source
-func (f *Finder) From(source func(io.WriteCloser) error) {
-	f.Source = source
-}
-
-// FromFile sets the contents of the file as Source
-func (f *Finder) FromFile(file string) {
-	f.Source = func(out io.WriteCloser) error {
-		fp, err := os.Open(file)
-		if err != nil {
-			return err
-		}
-		defer fp.Close()
-		scanner := bufio.NewScanner(fp)
-		for scanner.Scan() {
-			fmt.Fprintln(out, scanner.Text())
-		}
-		return scanner.Err()
+	command := &Command{
+		Name:  name,
+		Args:  args,
+		Path:  path,
+		Input: source.Stdin(),
 	}
-}
-
-// FromDir sets io.Reader as Source
-func (f *Finder) FromDir(dir string, full bool) {
-	f.Source = func(out io.WriteCloser) error {
-		files, err := ioutil.ReadDir(dir)
-		if err != nil {
-			return err
-		}
-		for _, file := range files {
-			fname := file.Name()
-			if full {
-				fname = filepath.Join(dir, fname)
-			}
-			fmt.Fprintln(out, fname)
-		}
-		return nil
+	switch name {
+	case "fzf":
+		return Fzf{command}, nil
+	case "fzy":
+		return Fzy{command}, nil
+	case "peco":
+		return Peco{command}, nil
+	default:
+		return command, nil
 	}
-}
-
-// FromText sets the text as Source
-func (f *Finder) FromText(text string) {
-	f.Source = func(out io.WriteCloser) error {
-		fmt.Fprintln(out, text)
-		return nil
-	}
-}
-
-// FromCommand sets the execution result of the command as Source
-func (f *Finder) FromCommand(command string, args ...string) {
-	f.Source = func(out io.WriteCloser) error {
-		if _, err := exec.LookPath(command); err != nil {
-			return err
-		}
-		for _, arg := range args {
-			command += " " + arg
-		}
-		var cmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("cmd", "/c", command)
-		} else {
-			cmd = exec.Command("sh", "-c", command)
-		}
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = out
-		cmd.Stdin = os.Stdin
-		return cmd.Run()
-	}
-}
-
-// FromReader sets io.Reader as Source
-func (f *Finder) FromReader(r io.Reader) {
-	f.Source = func(out io.WriteCloser) error {
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			fmt.Fprintln(out, scanner.Text())
-		}
-		return scanner.Err()
-	}
-}
-
-// FromStdin sets os.Stdin as Source
-func (f *Finder) FromStdin() {
-	f.FromReader(os.Stdin)
 }

@@ -4,38 +4,23 @@ import (
 	"fmt"
 
 	finder "github.com/b4b4r07/go-finder"
+	"github.com/b4b4r07/go-finder/source"
 )
 
 func main() {
-	var opts []string
-
-	command := finder.Command()
-	switch command {
-	case "fzf":
-		opts = []string{
-			"--reverse",
-			"--height", "40",
-		}
-	case "peco":
-		opts = []string{
-			"--layout=bottom-up",
-		}
-	}
-
-	cli, err := finder.New(command, opts...)
+	fzf, err := finder.New("fzf", "--reverse", "--height=50%")
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("fzf obeject:   %#v\n", fzf)
 
-	// You can select the data source to use as filter source
-	cli.FromFile("some-file.txt")
-	cli.FromText("sample\ntext\nfoo")
-	cli.FromCommand("cat", "some-file.txt")
-	cli.FromStdin() // default
+	// Set data source
+	fzf.Read(source.Dir(".", true))
+	fzf.Read(source.Slice([]string{"a", "b", "c"}))
 
-	items, err := cli.Run()
+	items, err := fzf.Run()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%#v\n", items)
+	fmt.Printf("selected items:%#v\n", items)
 }
