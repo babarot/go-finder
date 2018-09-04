@@ -29,6 +29,40 @@ type Command struct {
 	Input source.Source
 }
 
+// Commands represents the command list
+type Commands []Command
+
+// DefaultCommands represents the list of default finder commands optimized for quick usage
+var DefaultCommands = Commands{
+	// https://github.com/junegunn/fzf
+	Command{
+		Name: "fzf",
+		Args: []string{"--reverse", "--height=50%", "--ansi", "--multi"},
+	},
+	// https://github.com/jhawthorn/fzy
+	Command{Name: "fzy"},
+	// https://github.com/peco/peco
+	Command{Name: "peco"},
+	// https://github.com/mooz/percol
+	Command{Name: "percol"},
+}
+
+// Lookup lookups the available command
+func (c Commands) Lookup() (Command, error) {
+	for _, command := range c {
+		path, err := exec.LookPath(command.Name)
+		if err == nil {
+			return Command{
+				Name:  command.Name,
+				Args:  command.Args,
+				Path:  path,
+				Input: source.Stdin(),
+			}, nil
+		}
+	}
+	return Command{}, errors.New("no available finder command")
+}
+
 // Run runs as a command
 func (c *Command) Run() ([]string, error) {
 	shell := os.Getenv("SHELL")
@@ -78,25 +112,36 @@ func (c *Command) Read(data source.Source) {
 }
 
 // New creates Finder instance
-func New(name string, args ...string) (Finder, error) {
-	path, err := exec.LookPath(name)
-	if err != nil {
-		return nil, errors.Wrapf(err, "%s: not found", name)
+func New(args ...string) (Finder, error) {
+	var (
+		command Command
+		err     error
+	)
+	if len(args) == 0 {
+		command, err = DefaultCommands.Lookup()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		path, err := exec.LookPath(args[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "%s: not found", args[0])
+		}
+		command = Command{
+			Name:  args[0],
+			Args:  args[1:],
+			Path:  path,
+			Input: source.Stdin(),
+		}
 	}
-	command := &Command{
-		Name:  name,
-		Args:  args,
-		Path:  path,
-		Input: source.Stdin(),
-	}
-	switch name {
+	switch command.Name {
 	case "fzf":
-		return Fzf{command}, nil
+		return Fzf{&command}, nil
 	case "fzy":
-		return Fzy{command}, nil
+		return Fzy{&command}, nil
 	case "peco":
-		return Peco{command}, nil
+		return Peco{&command}, nil
 	default:
-		return command, nil
+		return &command, nil
 	}
 }

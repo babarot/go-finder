@@ -8,15 +8,14 @@ import (
 )
 
 func main() {
-	fzf, err := finder.New("fzf", "--reverse", "--height=50%")
+	fzf, err := finder.New("fzf")
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("fzf obeject:   %#v\n", fzf)
 
-	// Set data source
+	// Read files list within dir as data source of fzf
 	fzf.Read(source.Dir(".", true))
-	fzf.Read(source.Slice([]string{"a", "b", "c"}))
 
 	items, err := fzf.Run()
 	if err != nil {
