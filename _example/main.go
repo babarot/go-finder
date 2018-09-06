@@ -12,6 +12,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// If needed, install fzf to the path
+	fzf.Install("/usr/local/bin")
+
 	fmt.Printf("fzf obeject:   %#v\n", fzf)
 
 	// Read files list within dir as data source of fzf

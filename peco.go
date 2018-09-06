@@ -6,6 +6,7 @@ type Peco struct {
 }
 
 // Install installs the command
-func (c Peco) Install() error {
+func (c Peco) Install(path string) error {
+	// not support yet
 	return nil
 }

@@ -6,6 +6,7 @@ type Fzy struct {
 }
 
 // Install installs the command
-func (c Fzy) Install() error {
+func (c Fzy) Install(path string) error {
+	// not support yet
 	return nil
 }

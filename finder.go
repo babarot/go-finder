@@ -17,7 +17,7 @@ type CLI interface {
 // Finder is the interface of a filter command
 type Finder interface {
 	CLI
-	Install() error
+	Install(string) error
 	Read(source.Source)
 }
 
@@ -102,7 +102,7 @@ func trimLastNewline(s []string) []string {
 
 // Install does nothing and is implemented to satisfy Finder interface
 // This method should be overwritten by each finder command implementation
-func (c *Command) Install() error {
+func (c *Command) Install(path string) error {
 	return nil
 }
 
