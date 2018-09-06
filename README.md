@@ -16,53 +16,26 @@ fzf.Run()
 ```
 
 ```go
-peco, err := finder.New("peco", "--layout=bottom-up")
+peco, err := finder.New("peco")
 if err != nil {
 	panic(err)
 }
 peco.Run()
 ```
 
-You can set the finder command a little more flexibly like the following script.
-By default the data source is Stdin, but you can choose a variety of it.
-
 ```go
-var opts []string
-command := finder.Command()
-switch command {
-case "fzf":
-	opts = []string{
-		"--reverse",
-		"--height", "40",
-	}
-case "peco":
-	opts = []string{
-		"--layout=bottom-up",
-	}
-}
-
-cli, err := finder.New(command, opts...)
+cli, err := finder.New()
 if err != nil {
 	panic(err)
 }
-
-// You can select the data source to use as filter source
-cli.FromFile("some-file.txt")
-cli.FromText("sample\ntext\nfoo")
-cli.FromCommand("cat", "some-file.txt")
-cli.FromStdin() // default
-
-items, err := cli.Run()
-if err != nil {
-	panic(err)
-}
-fmt.Printf("%#v\n", items)
+// If no argument is given to finder.New()
+// it scans available finder command (fzf,fzy,peco,etc) from your PATH
 ```
 
 ## Installation
 
 ```console
-$ go get github.com/b4b4r07/go-finder
+$ go get -d github.com/b4b4r07/go-finder
 ```
 
 ## License
