@@ -12,21 +12,33 @@ import (
 // CLI is the command having a command-line interface
 type CLI interface {
 	Run() ([]string, error)
+	Read(source.Source)
 }
+
+// Item is key-value
+type Item struct {
+	Key   string
+	Value interface{}
+}
+
+// Items is the collection of Item
+type Items []Item
 
 // Finder is the interface of a filter command
 type Finder interface {
 	CLI
 	Install(string) error
-	Read(source.Source)
+	Select() ([]interface{}, error)
+	Add(k string, v interface{})
 }
 
 // Command represents the command
 type Command struct {
-	Name  string
-	Args  []string
-	Path  string
-	Input source.Source
+	Name   string
+	Args   []string
+	Path   string
+	Items  Items
+	Source source.Source
 }
 
 // Commands represents the command list
@@ -53,10 +65,10 @@ func (c Commands) Lookup() (Command, error) {
 		path, err := exec.LookPath(command.Name)
 		if err == nil {
 			return Command{
-				Name:  command.Name,
-				Args:  command.Args,
-				Path:  path,
-				Input: source.Stdin(),
+				Name:   command.Name,
+				Args:   command.Args,
+				Path:   path,
+				Source: source.Stdin(),
 			}, nil
 		}
 	}
@@ -74,7 +86,7 @@ func (c *Command) Run() ([]string, error) {
 	in, _ := cmd.StdinPipe()
 	errCh := make(chan error, 1)
 	go func() {
-		if err := c.Input(in); err != nil {
+		if err := c.Source(in); err != nil {
 			errCh <- err
 			return
 		}
@@ -87,6 +99,31 @@ func (c *Command) Run() ([]string, error) {
 	}
 	result, _ := cmd.Output()
 	return trimLastNewline(strings.Split(string(result), "\n")), nil
+}
+
+// Select selects the keys in various map
+func (c *Command) Select() ([]interface{}, error) {
+	var keys []string
+	for _, item := range c.Items {
+		keys = append(keys, item.Key)
+	}
+	if len(keys) == 0 {
+		return nil, errors.New("no items")
+	}
+	c.Read(source.Slice(keys))
+	selectedKeys, err := c.Run()
+	if err != nil {
+		return nil, err
+	}
+	var values []interface{}
+	for _, key := range selectedKeys {
+		for _, item := range c.Items {
+			if item.Key == key {
+				values = append(values, item.Value)
+			}
+		}
+	}
+	return values, nil
 }
 
 func trimLastNewline(s []string) []string {
@@ -108,7 +145,7 @@ func (c *Command) Install(path string) error {
 
 // Read sets the data sources
 func (c *Command) Read(data source.Source) {
-	c.Input = data
+	c.Source = data
 }
 
 // New creates Finder instance
@@ -128,10 +165,11 @@ func New(args ...string) (Finder, error) {
 			return nil, errors.Wrapf(err, "%s: not found", args[0])
 		}
 		command = Command{
-			Name:  args[0],
-			Args:  args[1:],
-			Path:  path,
-			Input: source.Stdin(),
+			Name:   args[0],
+			Args:   args[1:],
+			Path:   path,
+			Items:  Items{},
+			Source: source.Stdin(),
 		}
 	}
 	switch command.Name {
@@ -144,4 +182,9 @@ func New(args ...string) (Finder, error) {
 	default:
 		return &command, nil
 	}
+}
+
+// Add adds key and value
+func (c *Command) Add(k string, v interface{}) {
+	c.Items = append(c.Items, Item{Key: k, Value: v})
 }
