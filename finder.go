@@ -41,8 +41,7 @@ func (i *Items) Add(key string, value interface{}) {
 type Finder interface {
 	CLI
 	Install(string) error
-	Select(Items) ([]interface{}, error)
-	// Add(k string, v interface{})
+	Select(interface{}) ([]interface{}, error)
 }
 
 // Command represents the command
@@ -115,28 +114,47 @@ func (c *Command) Run() ([]string, error) {
 }
 
 // Select selects the keys in various map
-func (c *Command) Select(items Items) ([]interface{}, error) {
-	var keys []string
-	for _, item := range items {
-		keys = append(keys, item.Key)
-	}
-	if len(keys) == 0 {
-		return nil, errors.New("no items")
-	}
-	c.Read(source.Slice(keys))
-	selectedKeys, err := c.Run()
-	if err != nil {
-		return nil, err
-	}
-	var values []interface{}
-	for _, key := range selectedKeys {
+func (c *Command) Select(args interface{}) ([]interface{}, error) {
+	switch items := args.(type) {
+	case Items:
+		var keys []string
 		for _, item := range items {
-			if item.Key == key {
-				values = append(values, item.Value)
+			keys = append(keys, item.Key)
+		}
+		if len(keys) == 0 {
+			return nil, errors.New("no items")
+		}
+		c.Read(source.Slice(keys))
+		selectedKeys, err := c.Run()
+		if err != nil {
+			return nil, err
+		}
+		var values []interface{}
+		for _, key := range selectedKeys {
+			for _, item := range items {
+				if item.Key == key {
+					values = append(values, item.Value)
+				}
 			}
 		}
+		return values, nil
+	case []string:
+		if len(items) == 0 {
+			return nil, errors.New("no items")
+		}
+		c.Read(source.Slice(items))
+		selectedItems, err := c.Run()
+		if err != nil {
+			return nil, err
+		}
+		var values []interface{}
+		for _, item := range selectedItems {
+			values = append(values, item)
+		}
+		return values, nil
+	default:
+		return nil, errors.New("Error")
 	}
-	return values, nil
 }
 
 func trimLastNewline(s []string) []string {
@@ -196,8 +214,3 @@ func New(args ...string) (Finder, error) {
 		return &command, nil
 	}
 }
-
-// // Add adds key and value
-// func (c *Command) Add(k string, v interface{}) {
-// 	c.Items = append(c.Items, Item{Key: k, Value: v})
-// }
