@@ -24,12 +24,25 @@ type Item struct {
 // Items is the collection of Item
 type Items []Item
 
+// NewItems creates Items object
+func NewItems() Items {
+	return Items{}
+}
+
+// Add addes item to Items
+func (i *Items) Add(key string, value interface{}) {
+	*i = append(*i, Item{
+		Key:   key,
+		Value: value,
+	})
+}
+
 // Finder is the interface of a filter command
 type Finder interface {
 	CLI
 	Install(string) error
-	Select() ([]interface{}, error)
-	Add(k string, v interface{})
+	Select(Items) ([]interface{}, error)
+	// Add(k string, v interface{})
 }
 
 // Command represents the command
@@ -102,9 +115,9 @@ func (c *Command) Run() ([]string, error) {
 }
 
 // Select selects the keys in various map
-func (c *Command) Select() ([]interface{}, error) {
+func (c *Command) Select(items Items) ([]interface{}, error) {
 	var keys []string
-	for _, item := range c.Items {
+	for _, item := range items {
 		keys = append(keys, item.Key)
 	}
 	if len(keys) == 0 {
@@ -117,7 +130,7 @@ func (c *Command) Select() ([]interface{}, error) {
 	}
 	var values []interface{}
 	for _, key := range selectedKeys {
-		for _, item := range c.Items {
+		for _, item := range items {
 			if item.Key == key {
 				values = append(values, item.Value)
 			}
@@ -184,7 +197,7 @@ func New(args ...string) (Finder, error) {
 	}
 }
 
-// Add adds key and value
-func (c *Command) Add(k string, v interface{}) {
-	c.Items = append(c.Items, Item{Key: k, Value: v})
-}
+// // Add adds key and value
+// func (c *Command) Add(k string, v interface{}) {
+// 	c.Items = append(c.Items, Item{Key: k, Value: v})
+// }
