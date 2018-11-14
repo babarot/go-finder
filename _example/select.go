@@ -31,14 +31,15 @@ func main() {
 			ISBN:  "ccc",
 		},
 	}
+	items := finder.NewItems()
 	for _, book := range books {
-		fzf.Add(book.Title, book)
+		items.Add(book.Title, book)
 	}
-	items, err := fzf.Select()
+	selectedItems, err := fzf.Select(items)
 	if err != nil {
 		panic(err)
 	}
-	for _, item := range items {
+	for _, item := range selectedItems {
 		fmt.Printf("ISBN of %s is %s\n", item.(Book).Title, item.(Book).ISBN)
 	}
 }
